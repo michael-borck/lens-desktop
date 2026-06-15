@@ -13,11 +13,19 @@ export interface AppConfig {
   ollama: { recommendedModel: string; recommendedSizeGB: number };
 }
 
+export interface ApiResponse {
+  status: number;
+  body: unknown;
+}
+
 export interface LensBridge {
   config(): Promise<AppConfig>;
   sidecarStatus(): Promise<SidecarStatus>;
   onSidecarStatus(cb: (s: SidecarStatus) => void): () => void;
   onSidecarLog(cb: (line: string) => void): () => void;
+  api(method: string, path: string, body?: unknown): Promise<ApiResponse>;
+  pickDir(): Promise<string | null>;
+  pickFile(filters?: { name: string; extensions: string[] }[]): Promise<string | null>;
   onSetupPhase(cb: (phase: string) => void): () => void;
   onSetupLog(cb: (line: string) => void): () => void;
   onSetupError(cb: (err: string) => void): () => void;

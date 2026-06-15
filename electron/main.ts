@@ -4,8 +4,9 @@
  * localhost HTTP API (URL + token handed over via IPC) and drives setup/Ollama
  * through the channels below.
  */
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { autoUpdater } from "electron-updater";
+import http from "node:http";
 import path from "node:path";
 
 import * as ollama from "./ollama";
@@ -80,8 +81,53 @@ async function boot(): Promise<void> {
   }
 }
 
+/** Proxy a JSON request to the sidecar (renderer -> main -> sidecar): keeps the
+ *  bearer token in main and sidesteps CORS. Returns {status, body}. */
+function sidecarRequest(
+  method: string,
+  reqPath: string,
+  body?: unknown,
+): Promise<{ status: number; body: unknown }> {
+  return new Promise((resolve, reject) => {
+    if (!sidecar) return reject(new Error("engine not started"));
+    const url = new URL(sidecar.url + reqPath);
+    const payload = body === undefined ? undefined : JSON.stringify(body);
+    const req = http.request(
+      {
+        hostname: url.hostname,
+        port: url.port,
+        path: url.pathname + url.search,
+        method,
+        headers: {
+          Authorization: `Bearer ${sidecar.token}`,
+          ...(payload ? { "Content-Type": "application/json" } : {}),
+        },
+      },
+      (res) => {
+        let buf = "";
+        res.on("data", (c) => (buf += c));
+        res.on("end", () => {
+          let parsed: unknown = buf;
+          try {
+            parsed = JSON.parse(buf);
+          } catch {
+            /* non-JSON (e.g. empty) */
+          }
+          resolve({ status: res.statusCode ?? 0, body: parsed });
+        });
+      },
+    );
+    req.on("error", reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
 function registerIpc(): void {
   ipcMain.handle("sidecar:status", () => sidecar?.status ?? { phase: "not-started" });
+  ipcMain.handle("sidecar:request", (_e, method: string, p: string, body?: unknown) =>
+    sidecarRequest(method, p, body),
+  );
   ipcMain.handle("ollama:detect", () => ollama.detect());
   ipcMain.handle("ollama:pull", (_e, model: string) =>
     ollama.pull(model, CONFIG.ollama.recommendedModel, (prog) => send("ollama:progress", prog)),
@@ -90,6 +136,14 @@ function registerIpc(): void {
     productName: CONFIG.productName,
     ollama: CONFIG.ollama,
   }));
+  ipcMain.handle("dialog:pickDir", async () => {
+    const r = await dialog.showOpenDialog(win!, { properties: ["openDirectory"] });
+    return r.canceled ? null : r.filePaths[0];
+  });
+  ipcMain.handle("dialog:pickFile", async (_e, filters?: { name: string; extensions: string[] }[]) => {
+    const r = await dialog.showOpenDialog(win!, { properties: ["openFile"], filters });
+    return r.canceled ? null : r.filePaths[0];
+  });
 }
 
 async function shutdown(): Promise<void> {

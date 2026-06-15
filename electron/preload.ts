@@ -20,6 +20,14 @@ contextBridge.exposeInMainWorld("lens", {
   onSidecarStatus: (cb: Cb<{ phase: string; url: string; token: string }>) =>
     on("sidecar:status", cb),
   onSidecarLog: (cb: Cb<string>) => on("sidecar:log", cb),
+  // Proxied JSON call to the sidecar HTTP API (main holds the token).
+  api: (method: string, path: string, body?: unknown) =>
+    ipcRenderer.invoke("sidecar:request", method, path, body),
+
+  // Native file/folder pickers
+  pickDir: () => ipcRenderer.invoke("dialog:pickDir"),
+  pickFile: (filters?: { name: string; extensions: string[] }[]) =>
+    ipcRenderer.invoke("dialog:pickFile", filters),
 
   // First-run setup
   onSetupPhase: (cb: Cb<string>) => on("setup:phase", cb),
