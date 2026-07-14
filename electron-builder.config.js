@@ -17,7 +17,7 @@ module.exports = {
     { from: "resources/models", to: "models", filter: ["**/*"] },
   ],
   afterSign: "scripts/notarize.js",
-  publish: { provider: "github", owner: "michael-borck", repo: "REPLACE_ME" },
+  publish: { provider: "github", owner: "michael-borck", repo: "lens-desktop" },
 
   mac: {
     category: "public.app-category.education",
