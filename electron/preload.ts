@@ -17,8 +17,8 @@ contextBridge.exposeInMainWorld("lens", {
 
   // Sidecar (the engine)
   sidecarStatus: () => ipcRenderer.invoke("sidecar:status"),
-  onSidecarStatus: (cb: Cb<{ phase: string; url: string; token: string }>) =>
-    on("sidecar:status", cb),
+  restartEngine: () => ipcRenderer.invoke("sidecar:restart"),
+  onSidecarStatus: (cb: Cb<{ phase: string; url: string }>) => on("sidecar:status", cb),
   onSidecarLog: (cb: Cb<string>) => on("sidecar:log", cb),
   // Proxied JSON call to the sidecar HTTP API (main holds the token).
   api: (method: string, path: string, body?: unknown) =>
@@ -39,4 +39,9 @@ contextBridge.exposeInMainWorld("lens", {
   ollamaPull: (model: string) => ipcRenderer.invoke("ollama:pull", model),
   onOllamaProgress: (cb: Cb<{ status: string; percent: number | null }>) =>
     on("ollama:progress", cb),
+  ollamaInstall: () => ipcRenderer.invoke("ollama:install"),
+  onOllamaInstallProgress: (cb: Cb<{ status: string; percent: number | null }>) =>
+    on("ollama:install-progress", cb),
+  setOllamaModel: (modelId: string) => ipcRenderer.invoke("settings:setModel", modelId),
+  setHeuristics: (enabled: boolean) => ipcRenderer.invoke("settings:setHeuristics", enabled),
 });

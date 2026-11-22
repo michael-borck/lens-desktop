@@ -6,17 +6,24 @@ import { OllamaSetupCard } from "./components/OllamaSetupCard";
 
 /**
  * Template shell. Apps replace `<YourWorkflow />` with their real UI, talking to
- * the sidecar over HTTP (status.url + bearer status.token). The reusable bits —
- * first-run modal, engine status, Ollama setup — come for free.
+ * the sidecar through `window.lens.api(method, path, body)` (main holds the
+ * bearer token and proxies the request). The reusable bits — first-run modal,
+ * engine status, Ollama setup — come for free.
  */
 export function App() {
-  const [status, setStatus] = useState<SidecarStatus>({ phase: "not-started", url: "", token: "" });
+  const [status, setStatus] = useState<SidecarStatus>({ phase: "not-started", url: "" });
   const [setupPhase, setSetupPhase] = useState<string>("");
+  const [heuristics, setHeuristics] = useState(true);
+  const [routing, setRouting] = useState(false);
 
   useEffect(() => {
     window.lens.sidecarStatus().then(setStatus);
     const offStatus = window.lens.onSidecarStatus(setStatus);
     const offPhase = window.lens.onSetupPhase(setSetupPhase);
+    void window.lens.config().then((c) => {
+      setHeuristics(c.settings?.heuristics !== false);
+      setRouting(c.routing);
+    });
     return () => {
       offStatus();
       offPhase();
@@ -38,12 +45,29 @@ export function App() {
         <OllamaSetupCard />
       </section>
 
-      <section style={{ marginTop: 24, color: "#555" }}>
-        <p>
-          Replace this with your workflow. The analysis engine is at{" "}
-          <code>{status.url || "(starting…)"}</code> — call it over HTTP with the
-          bearer token from <code>window.lens.sidecarStatus()</code>.
+      <section style={{ marginTop: 24, color: "#555", display: "grid", gap: 10 }}>
+        <p style={{ margin: 0 }}>
+          Replace this with your workflow. The engine is at{" "}
+          <code>{status.url || "(starting…)"}</code> — call it with{" "}
+          <code>window.lens.api("GET", "/health")</code> (main attaches the bearer
+          token).
         </p>
+        {/* The heuristic gate only matters when the app routes through
+            auto-analyser (installs `*-analyser` specialists). */}
+        {routing && (
+          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+            <input
+              type="checkbox"
+              checked={heuristics}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setHeuristics(next);
+                void window.lens.setHeuristics(next);
+              }}
+            />
+            Detect AI-chat transcripts &amp; reflective journals (heuristic signal passes)
+          </label>
+        )}
       </section>
     </main>
   );
