@@ -25,7 +25,7 @@ module.exports = {
   // `auto-analyser.yaml` beside the sidecar automatically (see writeRouterConfig
   // in main.ts). Pin per app release; bump deliberately.
   sidecarPipSpecs: [
-    "assessment-lens[serve,analysers,distinctiveness,llm]==0.5.2",
+    "assessment-lens[serve,analysers,distinctiveness,llm]==0.5.3",
   ],
   // Console script the installed package exposes; {PORT}/{HOST} are substituted,
   // resolved against the venv's bin/ dir.
